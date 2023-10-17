@@ -10,4 +10,4 @@ spring:
       authentication-database: admin
 app:
   github-client:
-    base-url: https://api.github.com
+    base-url: http://localhost:9999
