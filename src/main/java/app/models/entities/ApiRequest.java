@@ -1,19 +1,15 @@
 package app.models.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 @Data
+@Document
 @AllArgsConstructor
 @NoArgsConstructor
-@EqualsAndHashCode(of = "login")
-@Entity
-@Table(name = "api-requests")
 public class ApiRequest {
 
     @Id
