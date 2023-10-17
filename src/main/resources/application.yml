@@ -1,10 +1,10 @@
 spring:
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: postgres
-    password: docker
-  jpa:
-    generate-ddl: true
-    hibernate:
-      ddl-auto: create
+  main:
+    web-application-type: reactive
+  data:
+    mongodb:
+      database: reactive_webflux
+      host: localhost
+      username: mongo
+      password: pass
+      authentication-database: admin
