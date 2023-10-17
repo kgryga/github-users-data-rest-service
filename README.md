@@ -48,7 +48,7 @@ where _login_ is GitHub user login.
 
 ### Responses
 Possible API responses:
-- 200 OK with body:
+- **200** OK with body:
 ```
 {
     "id": "...",
@@ -64,4 +64,10 @@ where _calculations_ is float value equals to:
 ```
 6 / user_git_hub_followers_number * (2 + user_git_hub_public_repos_number)
 ```
-- 500 INTERNAL SERVER ERROR when unexpected exception occurs
+- **404** NOT FOUND when no users found with requested login 
+- **500** INTERNAL SERVER ERROR when unexpected error occurred
+- **502** GATEWAY ERROR when GitHub API Client doesn't respond
+
+## TODO
+- add Swagger API documentation
+- create docker-compose
