@@ -21,6 +21,7 @@ public class ApiRequestsServiceTest {
     private static final String LOGIN = "testLogin123";
     private static final long PREVIOUS_REQUEST_COUNT = 2;
     private static final long CURRENT_REQUEST_COUNT = 3;
+    private static final long FIRST_REQUEST = 1;
 
     @Mock
     private ApiRequestsRepository apiRequestsRepository;
@@ -47,6 +48,24 @@ public class ApiRequestsServiceTest {
 
         verify(apiRequestsRepository).findById(LOGIN);
         verify(apiRequestsRepository).save(new ApiRequest(LOGIN, CURRENT_REQUEST_COUNT));
+        verifyNoMoreInteractions(apiRequestsRepository);
+    }
+
+    @Test
+    public void shouldReturnSavedApiRequestCountForLoginThatIsMissingInTheRepository() {
+        // given
+        when(apiRequestsRepository.findById(LOGIN)).thenReturn(Mono.empty());
+        when(apiRequestsRepository.save(new ApiRequest(LOGIN, FIRST_REQUEST)))
+                .thenReturn(Mono.just(new ApiRequest(LOGIN, FIRST_REQUEST)));
+
+        // when
+        Mono<ApiRequestDto> result = apiRequestsService.bumpApiRequestCount(LOGIN);
+
+        // then
+        StepVerifier.create(result).expectNext(new ApiRequestDto(LOGIN, FIRST_REQUEST)).verifyComplete();
+
+        verify(apiRequestsRepository).findById(LOGIN);
+        verify(apiRequestsRepository).save(new ApiRequest(LOGIN, FIRST_REQUEST));
         verifyNoMoreInteractions(apiRequestsRepository);
     }
 
