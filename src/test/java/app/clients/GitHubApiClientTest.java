@@ -14,8 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -23,9 +22,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@DirtiesContext
 public class GitHubApiClientTest {
 
     private static final String URL_TEMPLATE = "/users/%s";
@@ -72,7 +71,7 @@ public class GitHubApiClientTest {
     }
 
     @Test
-    public void shouldThrowWhenGitHubClientReturnsErrorStatusCode() {
+    public void shouldThrowResponseStatusException502WhenGitHubClientReturnsErrorStatusCode() {
         // given
         String url = String.format(URL_TEMPLATE, LOGIN);
         wireMockServer.stubFor(get(urlEqualTo(url))
@@ -83,7 +82,32 @@ public class GitHubApiClientTest {
         Mono<GitHubUserDataDto> result = gitHubApiClient.getUserData(LOGIN);
 
         // then
-        StepVerifier.create(result).verifyError(WebClientResponseException.class);
+        StepVerifier.create(result).verifyErrorSatisfies(throwable -> {
+            assertThat(throwable).isInstanceOf(ResponseStatusException.class);
+            assertThat(((ResponseStatusException) throwable).getStatusCode().value()).isEqualTo(502);
+        });
+
+        wireMockServer.verify(getRequestedFor(urlEqualTo(url)));
+    }
+
+    @Test
+    public void shouldThrowUserGitHubDataNotFoundExceptionWhenGitHubClientReturns404NotFound() {
+        // given
+        String url = String.format(URL_TEMPLATE, LOGIN);
+        wireMockServer.stubFor(get(urlEqualTo(url))
+                                 .willReturn(aResponse()
+                                                     .withStatus(HttpStatus.NOT_FOUND.value())));
+
+        // when
+        Mono<GitHubUserDataDto> result = gitHubApiClient.getUserData(LOGIN);
+
+        // then
+        StepVerifier.create(result).verifyErrorSatisfies(throwable -> {
+            assertThat(throwable).isInstanceOf(ResponseStatusException.class);
+            assertThat(((ResponseStatusException) throwable).getStatusCode().value()).isEqualTo(404);
+            assertThat(((ResponseStatusException) throwable).getMessage())
+                    .contains(String.format("No GitHub data found for user with login %s", LOGIN));
+        });
 
         wireMockServer.verify(getRequestedFor(urlEqualTo(url)));
     }
