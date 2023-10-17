@@ -11,16 +11,19 @@ import reactor.core.publisher.Mono;
 @Service
 public class ApiRequestsService {
 
+    private static final long FIRST_REQUEST = 1;
+
     private final ApiRequestsRepository apiRequestsRepository;
 
     public Mono<ApiRequestDto> bumpApiRequestCount(String login) {
         return apiRequestsRepository.findById(login)
-                .flatMap(apiRequest -> saveBumpedApiRequestCount(apiRequest.getLogin(), apiRequest))
+                .flatMap(apiRequest -> saveApiRequest(apiRequest.getLogin(), incrementRequestCount(apiRequest)))
+                .switchIfEmpty(Mono.defer(() -> saveApiRequest(login, FIRST_REQUEST)))
                 .map(saveResult -> new ApiRequestDto(saveResult.getLogin(), saveResult.getRequestCount()));
     }
 
-    private Mono<ApiRequest> saveBumpedApiRequestCount(String login, ApiRequest apiRequest) {
-        return apiRequestsRepository.save(new ApiRequest(login, incrementRequestCount(apiRequest)));
+    private Mono<ApiRequest> saveApiRequest(String login, Long requestCount) {
+        return apiRequestsRepository.save(new ApiRequest(login, requestCount));
     }
 
     private static long incrementRequestCount(ApiRequest apiRequest) {
