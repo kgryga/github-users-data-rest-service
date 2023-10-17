@@ -1,6 +1,7 @@
 package app.controllers;
 
 import app.clients.GitHubApiClient;
+import app.exceptions.UserGitHubDataNotFoundException;
 import app.models.dtos.GitHubUserDataDto;
 import app.models.dtos.UserDataDto;
 import app.models.entities.ApiRequest;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -18,6 +20,7 @@ import reactor.test.StepVerifier;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpStatusCode.valueOf;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -110,7 +113,47 @@ public class GetUserDataControllerTest {
     }
 
     @Test
-    public void shouldReturnInternalServerErrorWhenExceptionOccursDuringGettingUserDataFromGitHubApi() {
+    public void shouldReturnNotFoundWhenUserGitHubDataNotFoundExceptionOccursDuringGettingUserDataFromGitHubApi() {
+        // given
+        apiRequestsRepository.save(new ApiRequest(LOGIN, PREVIOUS_REQUEST_COUNT)).block();
+        when(gitHubApiClient.getUserData(LOGIN)).thenReturn(Mono.error(new UserGitHubDataNotFoundException(LOGIN)));
+
+        // when
+        WebTestClient.ResponseSpec response = webTestClient.get().uri(URL, LOGIN).exchange();
+
+        // then
+        response.expectStatus().isEqualTo(404);
+
+        verify(gitHubApiClient).getUserData(LOGIN);
+        verifyNoMoreInteractions(gitHubApiClient);
+
+        StepVerifier.create(apiRequestsRepository.findById(LOGIN))
+                .expectNext(new ApiRequest(LOGIN, CURRENT_REQUEST_COUNT))
+                .verifyComplete();
+    }
+
+    @Test
+    public void shouldReturn502When502ResponseStatusExceptionOccursDuringGettingUserDataFromGitHubApi() {
+        // given
+        apiRequestsRepository.save(new ApiRequest(LOGIN, PREVIOUS_REQUEST_COUNT)).block();
+        when(gitHubApiClient.getUserData(LOGIN)).thenReturn(Mono.error(new ResponseStatusException(valueOf(502))));
+
+        // when
+        WebTestClient.ResponseSpec response = webTestClient.get().uri(URL, LOGIN).exchange();
+
+        // then
+        response.expectStatus().isEqualTo(502);
+
+        verify(gitHubApiClient).getUserData(LOGIN);
+        verifyNoMoreInteractions(gitHubApiClient);
+
+        StepVerifier.create(apiRequestsRepository.findById(LOGIN))
+                .expectNext(new ApiRequest(LOGIN, CURRENT_REQUEST_COUNT))
+                .verifyComplete();
+    }
+
+    @Test
+    public void shouldReturn500WhenUnexpectedExceptionOccursDuringGettingUserData() {
         // given
         apiRequestsRepository.save(new ApiRequest(LOGIN, PREVIOUS_REQUEST_COUNT)).block();
         when(gitHubApiClient.getUserData(LOGIN)).thenReturn(Mono.error(new RuntimeException("test")));
@@ -119,7 +162,7 @@ public class GetUserDataControllerTest {
         WebTestClient.ResponseSpec response = webTestClient.get().uri(URL, LOGIN).exchange();
 
         // then
-        response.expectStatus().is5xxServerError();
+        response.expectStatus().isEqualTo(500);
 
         verify(gitHubApiClient).getUserData(LOGIN);
         verifyNoMoreInteractions(gitHubApiClient);
